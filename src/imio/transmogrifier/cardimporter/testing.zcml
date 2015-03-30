@@ -1,0 +1,18 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+    i18n_domain="imio.transmogrifier.cardimporter">
+
+  <include file="configure.zcml" />
+
+  <include package="ecreall.helpers.testing" />
+
+  <genericsetup:registerProfile
+      name="testing"
+      title="imio.transmogrifier.cardimporter tests"
+      directory="profiles/testing"
+      description="Steps to ease tests of imio.transmogrifier.cardimporter"
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      />
+
+</configure>

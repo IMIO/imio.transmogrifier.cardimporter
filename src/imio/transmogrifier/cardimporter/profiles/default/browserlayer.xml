@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<layers>
+  <layer
+    name="imio.transmogrifier.cardimporter"
+    interface="imio.transmogrifier.cardimporter.interfaces.IImioTransmogrifierCardimporterLayer"
+  />
+</layers>
