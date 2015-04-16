@@ -343,9 +343,6 @@ class Association(Item):
 
     def __create(self):
         Item.__create(self)
-        if 'patriotiques' in self.title:
-            import ipdb
-            ipdb.set_trace()
         self.container = self.migrate_container_association
         if 'file-fields' in self.files:
             xmlLogoString = self.files['file-fields']['data']
@@ -436,5 +433,3 @@ class Contact(Item):
         except Exception:
             import ipdb
             ipdb.set_trace()
-
-
