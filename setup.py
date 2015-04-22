@@ -44,6 +44,10 @@ setup(
         'five.grok',
         'plone.api',
         'setuptools',
+        'collective.geo.behaviour',
+        'collective.transmogrifier',
+        'plone.app.transmogrifier',
+        'quintagroup.transmogrifier',
     ],
     extras_require={
         'test': [

@@ -6,6 +6,9 @@
     xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
     i18n_domain="imio.transmogrifier.cardimporter">
 
+    <include package="quintagroup.transmogrifier" file="meta.zcml" />
+    <include package="quintagroup.transmogrifier" />
+
     <i18n:registerTranslations directory="locales" />
 
     <five:registerPackage package="." initialize=".initialize" />
@@ -32,5 +35,9 @@
         description="Post install import step from imio.transmogrifier.cardimporter"
         handler=".setuphandlers.post_install">
     </genericsetup:importStep>
-
+    
+    <utility
+        component=".cardimporter.CardImporterSection"
+        name="quintagroup.transmogrifier.cardimporter"
+        />
 </configure>

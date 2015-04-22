@@ -1,5 +1,4 @@
 from zope.interface import classProvides, implements
-
 from collective.transmogrifier.interfaces import ISection, ISectionBlueprint
 from collective.geo.behaviour.interfaces import ICoordinates
 from plone.app.textfield.value import RichTextValue
@@ -66,8 +65,6 @@ class CardImporterSection(object):
         """
         # cross the transmogrify structure
         for item in self.previous:
-            # self.item = item
-            # 1 construire un item de migration type en shop ou en association.
             currItem = Item.create(item, {'migrate_container_association': self.migrate_container_association,
                                           'migrate_container_shop': self.migrate_container_shop}
                                    )
@@ -76,7 +73,7 @@ class CardImporterSection(object):
                 continue
             else:
                 try:
-                    # On migre notre item type (enregistrement dans portal_catalog)
+                    # Item migration (register in portal_catalog)
                     currItem.migrate()
                     yield item
                 except Exception:
@@ -196,7 +193,7 @@ class Item:
                 # Find category with this ID so we don't create it but we get it.
                 migrate_category = self._getCategoryWrapperFromCatalog(self._remove_accents(self.category))
             self.category = migrate_category
-            # a priori tjrs vide car tjrs la dern. categorie et on a itere sur l'item self.id est forcement unique...
+            # really keep this test?
             if str(self.id) not in self.category.keys():
                 migrate_card = self._Item__migrate_to_card()
                 if migrate_card is not None:
@@ -277,6 +274,9 @@ class Item:
         return retour
 
     def _remove_accents(self, input_str):
+        """
+        Remove accent from input string input_str
+        """
         if type(input_str) is unicode:
             nkfd_form = unicodedata.normalize('NFKD', input_str)
             input_str = nkfd_form.encode('ASCII', 'ignore')
@@ -301,6 +301,9 @@ class Item:
         card.content = content
 
     def _get_item_by_id(self, portal_type, id):
+        """
+        Get object thank to its id.
+        """
         catalog = api.portal.get_tool(name="portal_catalog")
         brains = catalog.searchResults({'portal_type': portal_type, 'id': id})
         retour = None
