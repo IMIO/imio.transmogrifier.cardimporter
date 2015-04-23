@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 from zope.interface import classProvides, implements
 from collective.transmogrifier.interfaces import ISection, ISectionBlueprint
 from collective.geo.behaviour.interfaces import ICoordinates
@@ -12,6 +14,8 @@ logger = logging.getLogger('collective.directory.migrate')
 
 MIGRATE_CONTAINER_SHOP = 'directory-shop'
 MIGRATE_CONTAINER_ASSOCIATION = 'directory-association'
+MIGRATE_CONTAINER_HEBERGEMENT = 'directory-hebergement'
+MIGRATE_CONTAINER_CLUBSPORTIF = 'directory-clubs-sportifs'
 
 
 class CardImporterSection(object):
@@ -58,6 +62,20 @@ class CardImporterSection(object):
                 title=MIGRATE_CONTAINER_ASSOCIATION,
                 container=self.portal
             )
+        # Create collective.directory.directory to stock hebergement categories
+        if MIGRATE_CONTAINER_HEBERGEMENT not in self.portal.keys():
+            self.migrate_container_hebergement = api.content.create(
+                type='collective.directory.directory',
+                title=MIGRATE_CONTAINER_HEBERGEMENT,
+                container=self.portal
+            )
+        # Create collective.directory.directory to stock clubs-sportifs categories
+        if MIGRATE_CONTAINER_CLUBSPORTIF not in self.portal.keys():
+            self.migrate_container_clubsSportifs = api.content.create(
+                type='collective.directory.directory',
+                title=MIGRATE_CONTAINER_CLUBSPORTIF,
+                container=self.portal
+            )
 
     def __iter__(self):
         """
@@ -66,7 +84,10 @@ class CardImporterSection(object):
         # cross the transmogrify structure
         for item in self.previous:
             currItem = Item.create(item, {'migrate_container_association': self.migrate_container_association,
-                                          'migrate_container_shop': self.migrate_container_shop}
+                                          'migrate_container_shop': self.migrate_container_shop,
+                                          'migrate_container_hebergement': self.migrate_container_hebergement,
+                                          'migrate_container_clubsSportifs': self.migrate_container_clubsSportifs
+                                          }
                                    )
             if currItem is None or not currItem.is_valid():
                 yield item
@@ -87,7 +108,9 @@ class Item:
     __mImportContext = None
     __files = None
     __path = None
-    __availableItem = ['shop', 'Shop', 'Contact', 'association', 'Association']
+    __availableItem = ['clubs-sportifs', 'artisanat', 'hebergement', 'produits-du-terroir'
+                       'commercants', 'shop', 'Shop', 'Contact',
+                       'association', 'Association', 'associations']
 
     _title = None
     _creator = None
@@ -160,12 +183,25 @@ class Item:
         item = None
         if '_type' in xmlitem:
             currtype = xmlitem['_type']
+            # , 'artisanat', 'hebergement', 'produits-du-terroir'
+            if currtype == 'clubs-sportifs':
+                item = ClubsSportifs(xmlitem)
+                item.container = dicContainer['migrate_container_clubsSportifs']
+            if currtype == 'commercants':
+                item = commercants(xmlitem)
+                item.container = dicContainer['migrate_container_shop']
             if currtype == 'Shop' or currtype == 'shop':
                 item = Shop(xmlitem)
                 item.container = dicContainer['migrate_container_shop']
             if currtype == 'association' or currtype == 'Association':
                 item = Association(xmlitem)
                 item.container = dicContainer['migrate_container_association']
+            if currtype == 'associations':
+                item = Associations(xmlitem)
+                item.container = dicContainer['migrate_container_association']
+            if currtype == 'hebergement':
+                item = Hebergement(xmlitem)
+                item.container = dicContainer['migrate_container_hebergement']
             if currtype == 'Contact':
                 item = Contact(xmlitem)
         return item
@@ -195,17 +231,19 @@ class Item:
             self.category = migrate_category
             # really keep this test?
             if str(self.id) not in self.category.keys():
-                migrate_card = self._Item__migrate_to_card()
+                migrate_card = self._migrate_to_card()
                 if migrate_card is not None:
                     api.content.transition(obj=migrate_card, transition='publish_and_hide')
         except:
             import ipdb
             ipdb.set_trace()
 
-    def __migrate_to_card(self):
+    def _migrate_to_card(self):
         """
         Create new card into catalog.
         """
+        #import ipdb
+        #ipdb.set_trace()
         coord = None
         soustitre = ''
         description = ''
@@ -222,6 +260,11 @@ class Item:
             soustitre += self.surname_president
         if hasattr(self, 'firstname_president'):
             soustitre += ' ' + self.firstname_president
+        if isinstance(self, commercants) or isinstance(self, Associations):
+            if hasattr(self, 'lastname'):
+                soustitre += self.lastname
+            if hasattr(self, 'firstname'):
+                soustitre += ' ' + self.firstname
         if isinstance(self, Association):
             if hasattr(self, 'asbl') and self.asbl == 'True':
                 description = "asbl "
@@ -346,7 +389,127 @@ class Association(Item):
 
     def __create(self):
         Item.__create(self)
-        self.container = self.migrate_container_association
+        # self.container = self.migrate_container_association
+        if 'file-fields' in self.files:
+            xmlLogoString = self.files['file-fields']['data']
+            deb = self.files['file-fields']['data'].index('<filename>\n') + len('<filename>\n')
+            end = self.files['file-fields']['data'].index('</filename>')
+            self.logoName = xmlLogoString[deb:end].strip(" ").replace("\n", "").replace("&amp;", "&")
+            self.logo = self.files[self.logoName]['data']
+
+    def migrate(self):
+        try:
+            Item.migrate(self)
+        except Exception:
+            import ipdb
+            ipdb.set_trace()
+
+
+class Associations(Association):
+    '''
+    For "associations" objets (ver.4.3.2)
+    '''
+    def __init__(self, xmlitem):
+        Association.__init__(self, xmlitem)
+
+
+class Hebergement(Item):
+    '''
+    id
+    Coordinates
+    category
+    lastname (firstname option)
+    street
+    zip
+    commune
+    mobile
+    email
+    presentation
+    '''
+    _container = None
+    _logoName = None
+    _logo = None
+
+    @property
+    def container(self):
+        return self._container
+
+    @container.setter
+    def container(self, container):
+        self._container = container
+
+    @property
+    def logoName(self):
+        return self._logoName
+
+    @logoName.setter
+    def logoName(self, container):
+        self._logoName = container
+
+    @property
+    def logo(self):
+        return self._logo
+
+    @logo.setter
+    def logo(self, container):
+        self._logo = container
+
+    def __init__(self, xmlitem):
+        Item.__init__(self, xmlitem)
+
+    def __create(self):
+        Item.__create(self)
+        # self.container = self.migrate_container_association
+        if 'file-fields' in self.files:
+            xmlLogoString = self.files['file-fields']['data']
+            deb = self.files['file-fields']['data'].index('<filename>\n') + len('<filename>\n')
+            end = self.files['file-fields']['data'].index('</filename>')
+            self.logoName = xmlLogoString[deb:end].strip(" ").replace("\n", "").replace("&amp;", "&")
+            self.logo = self.files[self.logoName]['data']
+
+    def migrate(self):
+        try:
+            Item.migrate(self)
+        except Exception:
+            import ipdb
+            ipdb.set_trace()
+
+
+class ClubsSportifs(Item):
+    _container = None
+    _logoName = None
+    _logo = None
+
+    @property
+    def container(self):
+        return self._container
+
+    @container.setter
+    def container(self, container):
+        self._container = container
+
+    @property
+    def logoName(self):
+        return self._logoName
+
+    @logoName.setter
+    def logoName(self, container):
+        self._logoName = container
+
+    @property
+    def logo(self):
+        return self._logo
+
+    @logo.setter
+    def logo(self, container):
+        self._logo = container
+
+    def __init__(self, xmlitem):
+        Item.__init__(self, xmlitem)
+
+    def __create(self):
+        Item.__create(self)
+        # self.container = self.migrate_container_shop
         if 'file-fields' in self.files:
             xmlLogoString = self.files['file-fields']['data']
             deb = self.files['file-fields']['data'].index('<filename>\n') + len('<filename>\n')
@@ -396,7 +559,7 @@ class Shop(Item):
 
     def __create(self):
         Item.__create(self)
-        self.container = self.migrate_container_shop
+        # self.container = self.migrate_container_shop
         if 'file-fields' in self.files:
             xmlLogoString = self.files['file-fields']['data']
             deb = self.files['file-fields']['data'].index('<filename>\n') + len('<filename>\n')
@@ -410,6 +573,21 @@ class Shop(Item):
         except Exception:
             import ipdb
             ipdb.set_trace()
+
+
+class Artisanat(Shop):
+    def __init__(self, xmlitem):
+        Shop.__init__(self, xmlitem)
+
+
+class ProduitsDuTerroir(Shop):
+    def __init__(self, xmlitem):
+        Shop.__init__(self, xmlitem)
+
+
+class commercants(Shop):
+    def __init__(self, xmlitem):
+        Shop.__init__(self, xmlitem)
 
 
 class Contact(Item):
