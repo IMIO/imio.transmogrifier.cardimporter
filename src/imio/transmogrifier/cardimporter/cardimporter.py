@@ -212,7 +212,12 @@ class Item:
             regex = re.compile(r'[\n\r\t]')
             # if item has no category. Set a default category.
             if not hasattr(self, "category"):
-                setattr(self, "category", "get-no-default-category")
+                if hasattr(self, "shopType"):
+                    setattr(self, "category", self.shopType)
+                elif hasattr(self, "association_type"):
+                    setattr(self, "category", self.association_type)
+                else:
+                    setattr(self, "category", "get-no-default-category")
             category = regex.sub("", self.category)
             setattr(self, "category", category)
             if self._remove_accents(self.category) not in self.container.keys():

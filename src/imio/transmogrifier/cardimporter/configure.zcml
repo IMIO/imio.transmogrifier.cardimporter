@@ -9,17 +9,6 @@
     <include package="quintagroup.transmogrifier" file="meta.zcml" />
     <include package="quintagroup.transmogrifier" />
 
-    <i18n:registerTranslations directory="locales" />
-
-    <five:registerPackage package="." initialize=".initialize" />
-    
-    <include package="five.grok" />
-    <include package="plone.api" />
-
-    <include package=".browser" />
-    <include package=".content" />
-
-    <grok:grok package="." />
 
     <genericsetup:registerProfile
         name="default"
@@ -38,6 +27,11 @@
     
     <utility
         component=".cardimporter.CardImporterSection"
-        name="quintagroup.transmogrifier.cardimporter"
+        name="imio.transmogrifier.cardimporter.cardimporter"
+        />
+
+    <utility
+        component=".TTGoogleMapMarkerToCard.TTGoogleMapMarkerToCardSection"
+        name="imio.transmogrifier.cardimporter.TTGoogleMapMarkerToCard"
         />
 </configure>

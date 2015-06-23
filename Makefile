@@ -1,31 +1,30 @@
 #!/usr/bin/make
 #
+all: run
+VERSION=`cat version.txt`
+#BUILD_NUMBER := debug1
 
-.PHONY: test instance cleanall portals
+bootstrap.py:
+	wget http://downloads.buildout.org/2/bootstrap.py
 
-all: test docs
+buildout.cfg:
+	ln -fs dev.cfg buildout.cfg
+	#ln -fs prod.cfg buildout.cfg
 
 bin/python:
-	virtualenv-2.7 .
+	virtualenv-2.7 --no-site-packages .
 
-develop-eggs: bin/python bootstrap.py
+bin/buildout: bin/python buildout.cfg bootstrap.py
 	./bin/python bootstrap.py
 
-bin/buildout: develop-eggs
+.PHONY: buildout
+buildout: bin/buildout
+	bin/buildout -t 7
 
-bin/test: versions.cfg buildout.cfg bin/buildout setup.py
-	./bin/buildout -Nvt 5
-	touch $@
-
-bin/instance: versions.cfg buildout.cfg bin/buildout setup.py
-	./bin/buildout -Nvt 5 install instance
-	touch $@
-
-instance: bin/instance
+.PHONY: run
+run: buildout
 	bin/instance fg
 
-test: bin/test
-	bin/test
-
+.PHONY: cleanall
 cleanall:
-	rm -fr bin develop-eggs downloads eggs parts .installed.cfg devel
+	rm -fr develop-eggs downloads eggs parts .installed.cfg lib include bin .mr.developer.cfg
