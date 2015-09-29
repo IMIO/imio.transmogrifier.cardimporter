@@ -7,10 +7,11 @@ from plone.app.textfield.value import RichTextValue
 from plone.namedfile.file import NamedBlobImage
 from plone import api
 from zope.interface import classProvides, implements
+from collective.transmogrifier.utils import defaultMatcher
 import logging
 import re
 import unicodedata
-
+import transaction
 logger = logging.getLogger('collective.directory.migrate')
 
 MIGRATE_CONTAINER_SHOP = 'directory-shop'
@@ -34,7 +35,7 @@ class CardImporterSection(object):
         self.previous = previous
         self.context = transmogrifier.context
         self.portal = self.context
-
+        self.pathkey = defaultMatcher(options, 'path-key', name, 'path')
         qi_tool = api.portal.get_tool(name='portal_quickinstaller')
         pid = 'collective.directory'
         installed = [p['id'] for p in qi_tool.listInstalledProducts()]
@@ -81,18 +82,80 @@ class CardImporterSection(object):
                                            'migrate_container_shop': self.migrate_container_shop,
                                            'migrate_container_hebergement': self.migrate_container_hebergement,
                                            'migrate_container_clubsSportifs': self.migrate_container_clubsSportifs
-                                          }
-                                   )
+                                           }
+                                    )
+            # 1. On regarde si c'est un item que l'on veut traiter
             if curr_item is None or not curr_item.is_valid():
-                yield item
-                continue
+                if '_type' in item.keys() and item['_type'] == 'Image':
+                    # 2. Récupérer l'UID de l'image.
+                    marshall_data = item['_files']['marshall']['data']
+                    uid_index = marshall_data.index('<uid>\n\t') + 8
+                    uid_end_index = marshall_data.index('\n\t</uid>')
+                    uid = marshall_data[uid_index:uid_end_index]
+                    # 3. Récupérer un brains de toutes les cards déjà créée et regarder si l'uid est dans leur propriété "content.output"
+                    catalog = api.portal.get_tool(name="portal_catalog")
+                    brains = catalog.searchResults({'portal_type': 'collective.directory.card'})
+                    for brain in brains:
+                        obj = brain.getObject()
+                        if uid in obj.content.output:
+                            completePath = '/'.join(obj.getPhysicalPath()) + '/images'
+                            folder_images_path = obj.portal_catalog.searchResults(portal_type='Folder', path=completePath, depth=1)
+                            folder_images = None
+                            if not len(folder_images_path):
+                                # Création d'un dossier "images" dans la card.
+                                folder_images = api.content.create(
+                                    type='Folder',
+                                    title='Images',
+                                    id='images',
+                                    container=obj
+                                )
+                                api.content.transition(obj=folder_images, transition='publish_and_hide')
+                            else:
+                                for folder in folder_images_path:
+                                    folder_images = folder.getObject()
+                            image_name = ''
+                            for key in item['_files'].keys():
+                                if key != 'marshall' and key != 'portlet' and key != 'portlets' and key != 'file-fields' and key in item['_files']['file-fields']['data']:
+                                    image_name = key
+                            #if image_name == '':
+                            #    import ipdb;ipdb.set_trace()
+                            if image_name != '':
+                                image_data = item['_files'][image_name]
+                                image = NamedBlobImage()
+                                image.data = image_data['data']
+                                my_image = None
+                                if folder_images is not None and image_name != 'marshall' and image_name != 'file-fields':
+                                    # 4. Création de l'image dans le dossier "images" dans la card.
+                                    try:
+                                        my_image = api.content.create(
+                                            type='Image',
+                                            title=image_name,
+                                            container=folder_images
+                                        )
+                                        my_image.setImage(image.data)
+                                        my_image.reindexObject()
+                                        # 5. Get the new image UID to change old uid in CARD with the new image UID.
+                                        new_uid = my_image.UID()
+                                        html_string = obj.content.output
+                                        html_string = html_string.replace(uid, new_uid)
+                                        html_string = html_string.replace('resolveUid', 'resolveuid')
+                                        obj.content = RichTextValue(unicode(html_string, 'utf8'))
+                                        obj.reindexObject()
+                                        transaction.commit()
+                                    except Exception as e:
+                                        print e.message, e.args
+                                        import ipdb;ipdb.set_trace()
+                else:
+                    yield item
+                    continue
             else:
                 try:
-                    # Item migration (register in portal_catalog)
                     curr_item.migrate()
-                    yield item
-                except Exception:
-                    pass
+
+                except Exception as e:
+                    print e.message, e.args
+                    import ipdb;ipdb.set_trace()
+            yield item
 
     def _set_encoding(self):
         import sys
@@ -109,10 +172,13 @@ class Item:
     _files = None
     _path = None
     _available_item = ['clubs-sportifs', 'artisanat', 'hebergement', 'produits-du-terroir',
-                       'commercants', 'shop', 'Shop', 'Contact',
+                       'commercants', 'commercants-independants', 'shop', 'Shop', 'Contact',
                        'association', 'Association', 'associations']
     _title = None
     _creator = None
+    _pathkey = None
+    _portal = None
+    _valid = True
 
     @property
     def title(self):
@@ -160,9 +226,16 @@ class Item:
         self.xml_item = xml_item
         if '_files' in self.xml_item:
             self.Files = self.xml_item['_files']
+            # contient le contenu de la page du shop ou de l'association.
             strData = self.Files['marshall']['data']
-            self.objData = objectify.fromstring(strData)
-            self.__create()
+            try:
+                if strData != "":
+                    self.objData = objectify.fromstring(strData)
+                    self.__create()
+                else:
+                    self._valid = False
+            except:
+                import ipdb;ipdb.set_trace()
 
     def __create(self):
         """
@@ -171,16 +244,19 @@ class Item:
         objData : Objectify object
         """
         regex = re.compile(r'[\n\r\t]')
-        self.title = regex.sub("", self.objData.getchildren()[0].text)
-        self.creator = regex.sub("", self.objData.getchildren()[1].text)
-        for cpt_field in range(0, len(self.objData.field)):
-            current_field = self.objData.field[cpt_field]
-            setattr(self, current_field[cpt_field].get("name"), regex.sub("", current_field[cpt_field].text))
+        try:
+            self.title = regex.sub("", self.objData.getchildren()[0].text)
+            self.creator = regex.sub("", self.objData.getchildren()[1].text)
+            for cpt_field in range(0, len(self.objData.field)):
+                current_field = self.objData.field[cpt_field]
+                setattr(self, current_field[cpt_field].get("name"), regex.sub("", current_field[cpt_field].text))
+        except:
+            import ipdb;ipdb.set_trace()
 
     @staticmethod
     def create(xml_item, dic_container):
         item = None
-        if '_type' in xml_item:
+        if '_type' in xml_item.keys():
             current_type = xml_item['_type']
             # , 'artisanat', 'hebergement', 'produits-du-terroir'
             if current_type == 'clubs-sportifs':
@@ -189,7 +265,7 @@ class Item:
             if current_type == 'commercants':
                 item = commercants(xml_item)
                 item.container = dic_container['migrate_container_shop']
-            if current_type == 'Shop' or current_type == 'shop':
+            if current_type == 'Shop' or current_type == 'shop' or current_type == 'commercants-independants':
                 item = Shop(xml_item)
                 item.container = dic_container['migrate_container_shop']
             if current_type == 'association' or current_type == 'Association':
@@ -207,21 +283,21 @@ class Item:
 
     # Creation of a new category or use an already existant category to create in a new card.
     def migrate(self):
-        try:
-            migrate_category = None
-            regex = re.compile(r'[\n\r\t]')
-            # if item has no category. Set a default category.
-            if not hasattr(self, "category"):
-                if hasattr(self, "shopType"):
-                    setattr(self, "category", self.shopType)
-                elif hasattr(self, "association_type"):
-                    setattr(self, "category", self.association_type)
-                else:
-                    setattr(self, "category", "get-no-default-category")
-            category = regex.sub("", self.category)
-            setattr(self, "category", category)
-            if self._remove_accents(self.category) not in self.container.keys():
-                # creating new category in Plone in collective.directory.directory "MIGRATE_CONTAINER_ASSOCIATION"
+        migrate_category = None
+        regex = re.compile(r'[\n\r\t]')
+        # if item has no category. Set a default category.
+        if not hasattr(self, "category"):
+            if hasattr(self, "shopType"):
+                setattr(self, "category", self.shopType)
+            elif hasattr(self, "association_type"):
+                setattr(self, "category", self.association_type)
+            else:
+                setattr(self, "category", "get-no-default-category")
+        category = regex.sub("", self.category).replace("'", "-")
+        setattr(self, "category", category)
+        if self._remove_accents(self.category) not in self.container.keys():
+            # creating new category in Plone in collective.directory.directory "MIGRATE_CONTAINER_ASSOCIATION"
+            try:
                 migrate_category = api.content.create(
                     type='collective.directory.category',
                     title=self.category,
@@ -229,19 +305,27 @@ class Item:
                     container=self.container
                 )
                 api.content.transition(obj=migrate_category, transition='publish_and_hide')
-
-            else:
-                # Find category with this ID so we don't create it but we get it.
-                migrate_category = self._get_category_from_catalog(self._remove_accents(self.category))
-            self.category = migrate_category
-            # really keep this test?
-            # if str(self.id) not in self.category.keys():
-            migrate_card = self._migrate_to_card()
-            if migrate_card is not None:
-                api.content.transition(obj=migrate_card, transition='publish_and_hide')
-        except:
-            import ipdb
-            ipdb.set_trace()
+            except:
+                # Si ça se gamelle, on crée la catégorie par défaut (je laisse un pdb pour s'en rendre compte)
+                #setattr(self, "category", "get-no-default-category")
+                #migrate_category = api.content.create(
+                #    type='collective.directory.category',
+                #    title=self.category,
+                #    id=self._remove_accents(self.category),
+                #    container=self.container
+                #)
+                #api.content.transition(obj=migrate_category, transition='publish_and_hide')
+                import ipdb;ipdb.set_trace()
+        else:
+            # Find category with this ID so we don't create it but we get it.
+            migrate_category = self._get_category_from_catalog(self._remove_accents(self.category))
+        self.category = migrate_category
+        # really keep this test?
+        # if str(self.id) not in self.category.keys():
+        migrate_card = self._migrate_to_card()
+        if migrate_card is not None:
+            api.content.transition(obj=migrate_card, transition='publish_and_hide')
+            # transact.get().commit(True)
 
     def _migrate_to_card(self):
         """
@@ -274,19 +358,23 @@ class Item:
         if isinstance(self, Shop):
             sous_titre += hasattr(self, 'shopOwner') and self.shopOwner or ''
             city = hasattr(self, 'city') and self.city or None
+
+        if hasattr(self, 'Coordinates'):
+            lat, lon = self.Coordinates.split('|')
+            coord = u"POINT({0} {1})".format(lon, lat)
+        content = "{0} <br/> {1} <br/> {2}".format((hasattr(self, 'presentation') and " " + self.presentation or ''),
+                                                   horaire, (hasattr(self, 'information') and self.information or ''))
+        content = RichTextValue(unicode(content, 'utf8'))
+        description = "{0} {1}".format(description, hasattr(self, 'description') and self.description or '')
+        image = NamedBlobImage()
         try:
-            if hasattr(self, 'Coordinates'):
-                lat, lon = self.Coordinates.split('|')
-                coord = u"POINT({0} {1})".format(lon, lat)
-            content = "{0} <br/> {1} <br/> {2}".format((hasattr(self, 'presentation') and " " + self.presentation or ''),
-                                                       horaire, (hasattr(self, 'information') and self.information or ''))
-            content = RichTextValue(unicode(content, 'utf8'))
-            description = "{0} {1}".format(description, hasattr(self, 'description') and self.description or '')
-            image = NamedBlobImage()
             if self.logo is not None:
                 image.data = self.logo
             else:
                 image = None
+        except:
+            import ipdb;ipdb.set_trace()
+        try:
             card = api.content.create(
                 type='collective.directory.card',
                 title=self.title,
@@ -307,13 +395,12 @@ class Item:
             ICoordinates(card).coordinates = coord
             return card
         except:
-            import ipdb
-            ipdb.set_trace()
+            import ipdb;ipdb.set_trace()
             # logger.warn("{} not created : item = {}".format(str(self.id), self.container.getPath()))
 
     def is_valid(self):
         retour = True
-        if self.type is None or self.type not in self._available_item:
+        if self._valid is False or self.type is None or self.type not in self._available_item:
             retour = False
         return retour
 
@@ -321,10 +408,20 @@ class Item:
         """
         Remove accent from input string input_str
         """
+        return_string = input_string
         if type(input_string) is unicode:
             nkfd_form = unicodedata.normalize('NFKD', input_string)
-            input_string = nkfd_form.encode('ASCII', 'ignore')
-        return input_string
+            return_string = nkfd_form.encode('ASCII', 'ignore')
+        if " " in return_string:
+            return_string = return_string.replace(" ", "_")
+
+        if "&" in return_string:
+            return_string = return_string.replace("&", "et")
+        if "??" in return_string:
+            return_string = return_string.replace("?", "ea")
+        if "?" in return_string:
+            return_string = return_string.replace("?", "e")
+        return return_string
 
     def _get_category_from_catalog(self, current_category):
         catalog = api.portal.get_tool(name="portal_catalog")
@@ -391,12 +488,15 @@ class Association(Item):
     def __create(self):
         Item.__create(self)
         # self.container = self.migrate_container_association
-        if 'file-fields' in self.files:
-            xml_string_logo = self.files['file-fields']['data']
-            deb = self.files['file-fields']['data'].index('<filename>\n') + len('<filename>\n')
-            end = self.files['file-fields']['data'].index('</filename>')
-            self.logo_name = xml_string_logo[deb:end].strip(" ").replace("\n", "").replace("&amp;", "&")
-            self.logo = self.files[self.logo_name]['data']
+        try:
+            if 'file-fields' in self.files:
+                xml_string_logo = self.files['file-fields']['data']
+                deb = self.files['file-fields']['data'].index('<filename>\n') + len('<filename>\n')
+                end = self.files['file-fields']['data'].index('</filename>')
+                self.logo_name = xml_string_logo[deb:end].strip(" ").replace("\n", "").replace("&amp;", "&")
+                self.logo = self.files[self.logo_name]['data']
+        except:
+            import ipdb;ipdb.set_trace()
 
     def migrate(self):
         try:
@@ -571,7 +671,8 @@ class Shop(Item):
     def migrate(self):
         try:
             Item.migrate(self)
-        except Exception:
+        except Exception as e:
+            print e.message, e.args
             import ipdb
             ipdb.set_trace()
 

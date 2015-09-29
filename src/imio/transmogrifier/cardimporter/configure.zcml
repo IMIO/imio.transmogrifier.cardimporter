@@ -34,4 +34,9 @@
         component=".TTGoogleMapMarkerToCard.TTGoogleMapMarkerToCardSection"
         name="imio.transmogrifier.cardimporter.TTGoogleMapMarkerToCard"
         />
+    
+    <utility
+        component=".ATPhotoToBlobImage.ATPhotoToBlobImageSection"
+        name="imio.transmogrifier.cardimporter.ATPhotoToBlobImage"
+        />
 </configure>
