@@ -19,7 +19,7 @@ long_description = (
 
 setup(
     name='imio.transmogrifier.cardimporter',
-    version='0.2.dev0',
+    version='0.2',
     description="Pipeline to convert and import Shop or association into collective.directory.card.",
     long_description=long_description,
     # Get more from http://pypi.python.org/pypi?%3Aaction=list_classifiers
