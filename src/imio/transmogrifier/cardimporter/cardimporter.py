@@ -117,7 +117,7 @@ class CardImporterSection(object):
                             for key in item['_files'].keys():
                                 if key != 'marshall' and key != 'portlet' and key != 'portlets' and key != 'file-fields' and key in item['_files']['file-fields']['data']:
                                     image_name = key
-                            #if image_name == '':
+                            # if image_name == '':
                             #    import ipdb;ipdb.set_trace()
                             if image_name != '':
                                 image_data = item['_files'][image_name]
@@ -144,7 +144,8 @@ class CardImporterSection(object):
                                         transaction.commit()
                                     except Exception as e:
                                         print e.message, e.args
-                                        import ipdb;ipdb.set_trace()
+                                        import ipdb
+                                        ipdb.set_trace()
                 else:
                     yield item
                     continue
@@ -154,7 +155,8 @@ class CardImporterSection(object):
 
                 except Exception as e:
                     print e.message, e.args
-                    import ipdb;ipdb.set_trace()
+                    import ipdb
+                    ipdb.set_trace()
             yield item
 
     def _set_encoding(self):
@@ -235,7 +237,8 @@ class Item:
                 else:
                     self._valid = False
             except:
-                import ipdb;ipdb.set_trace()
+                import ipdb
+                ipdb.set_trace()
 
     def __create(self):
         """
@@ -251,7 +254,8 @@ class Item:
                 current_field = self.objData.field[cpt_field]
                 setattr(self, current_field[cpt_field].get("name"), regex.sub("", current_field[cpt_field].text))
         except:
-            import ipdb;ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
 
     @staticmethod
     def create(xml_item, dic_container):
@@ -307,15 +311,16 @@ class Item:
                 api.content.transition(obj=migrate_category, transition='publish_and_hide')
             except:
                 # Si ça se gamelle, on crée la catégorie par défaut (je laisse un pdb pour s'en rendre compte)
-                #setattr(self, "category", "get-no-default-category")
-                #migrate_category = api.content.create(
+                # setattr(self, "category", "get-no-default-category")
+                # migrate_category = api.content.create(
                 #    type='collective.directory.category',
                 #    title=self.category,
                 #    id=self._remove_accents(self.category),
                 #    container=self.container
-                #)
-                #api.content.transition(obj=migrate_category, transition='publish_and_hide')
-                import ipdb;ipdb.set_trace()
+                # )
+                # api.content.transition(obj=migrate_category, transition='publish_and_hide')
+                import ipdb
+                ipdb.set_trace()
         else:
             # Find category with this ID so we don't create it but we get it.
             migrate_category = self._get_category_from_catalog(self._remove_accents(self.category))
@@ -373,7 +378,8 @@ class Item:
             else:
                 image = None
         except:
-            import ipdb;ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
         try:
             card = api.content.create(
                 type='collective.directory.card',
@@ -395,7 +401,8 @@ class Item:
             ICoordinates(card).coordinates = coord
             return card
         except:
-            import ipdb;ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
             # logger.warn("{} not created : item = {}".format(str(self.id), self.container.getPath()))
 
     def is_valid(self):
@@ -496,7 +503,8 @@ class Association(Item):
                 self.logo_name = xml_string_logo[deb:end].strip(" ").replace("\n", "").replace("&amp;", "&")
                 self.logo = self.files[self.logo_name]['data']
         except:
-            import ipdb;ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
 
     def migrate(self):
         try:

@@ -4,7 +4,6 @@ from collective.transmogrifier.interfaces import ISection, ISectionBlueprint
 from collective.transmogrifier.utils import defaultMatcher
 from lxml import objectify
 from plone import api
-from plone.namedfile.file import NamedBlobImage
 from zope.interface import classProvides, implements
 import logging
 import re
@@ -90,10 +89,13 @@ class ATPhotoToBlobImageSection(object):
                 current_image.setFilename(unicode(item_image.id))
                 transaction.commit()
             else:
-                import ipdb;ipdb.set_trace()
+                import ipdb
+                ipdb.set_trace()
             return current_image
         except:
-            import ipdb;ipdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
+
 
 class Item:
     _obj_data = None
@@ -192,7 +194,7 @@ class Item:
                     setattr(self, "category", self.association_type)
                 else:
                     setattr(self, "category", "get-no-default-category")
-            category = regex.sub("", self.category).replace("'","-")
+            category = regex.sub("", self.category).replace("'", "-")
             setattr(self, "category", category)
             if self._remove_accents(self.category) not in self.container.keys():
                 # creating new category in Plone in collective.directory.directory "MIGRATE_CONTAINER_ASSOCIATION"

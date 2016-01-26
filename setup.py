@@ -48,6 +48,7 @@ setup(
         'collective.transmogrifier',
         'plone.app.transmogrifier',
         'quintagroup.transmogrifier',
+        'collective.directory',
     ],
     extras_require={
         'test': [
