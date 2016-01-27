@@ -8,6 +8,7 @@ Changelog
 - Add install require : collective.directory.
 - Pin collective.directory = 0.2.10 in versions.cfg
 - Pin createcoverage = 1.3.2 in versions.cfg
+- Clean and organize buildout
 
 
 
