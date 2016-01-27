@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.3 (unreleased)
+0.3 (2016-01-27)
 ----------------
 
 - Add install require : collective.directory.
