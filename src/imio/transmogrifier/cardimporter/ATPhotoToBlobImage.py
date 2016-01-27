@@ -76,8 +76,6 @@ class ATPhotoToBlobImageSection(object):
             container=parent_folder
         )
         try:
-            # if "loisirs/sports/fete-du-sport/edition2010/les-photos/dsc_0002.jpg" in item_image.path:
-            #    import ipdb;ipdb.set_trace()
             if "file-fields" in item_image.files and "data" in item_image.files['file-fields']:
                 key = item_image.files.keys()[2]
                 img_data = item_image.files[key]['data']
@@ -279,4 +277,3 @@ class Image(Item):
         except Exception:
             import ipdb
             ipdb.set_trace()
-
