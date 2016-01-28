@@ -86,7 +86,7 @@ class CardImporterSection(object):
                                     )
             # 1. On regarde si c'est un item que l'on veut traiter
             if curr_item is None or not curr_item.is_valid():
-                if '_type' in item.keys() and item['_type'] == 'Image':
+                if '_files' in item.keys() and '_type' in item.keys() and item['_type'] == 'Image':
                     # 2. Récupérer l'UID de l'image.
                     marshall_data = item['_files']['marshall']['data']
                     uid_index = marshall_data.index('<uid>\n\t') + 8
