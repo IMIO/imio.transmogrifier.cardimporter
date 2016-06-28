@@ -44,6 +44,7 @@ setup(
         'five.grok',
         'plone.api',
         'setuptools',
+        'ftw.blueprints',
         'collective.geo.behaviour',
         'collective.transmogrifier>=1.4',
         'plone.app.transmogrifier>=1.2',
