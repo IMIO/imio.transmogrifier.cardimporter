@@ -6,8 +6,8 @@
     xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
     i18n_domain="imio.transmogrifier.cardimporter">
 
-    <include package="quintagroup.transmogrifier" file="meta.zcml" />
-    <include package="quintagroup.transmogrifier" />
+    <!--include package="quintagroup.transmogrifier" file="meta.zcml" /-->
+    <!--include package="quintagroup.transmogrifier" /-->
     <include package="collective.directory" />    
 
 
@@ -32,6 +32,16 @@
         />
 
     <utility
+        component=".news.NewsImporterSection"
+        name="imio.transmogrifier.cardimporter.news"
+        />
+    
+    <utility
+        component=".folder.FolderLayoutSection"
+        name="imio.transmogrifier.cardimporter.folder"
+        />
+
+    <utility
         component=".TTGoogleMapMarkerToCard.TTGoogleMapMarkerToCardSection"
         name="imio.transmogrifier.cardimporter.TTGoogleMapMarkerToCard"
         />
@@ -40,4 +50,10 @@
         component=".ATPhotoToBlobImage.ATPhotoToBlobImageSection"
         name="imio.transmogrifier.cardimporter.ATPhotoToBlobImage"
         />
+    
+    <!--utility
+        component=".schemaupdater.DexterityUpdateSection"
+        name="imio.transmogrifier.cardimporter.schemaupdater"
+        /-->
+    
 </configure>
