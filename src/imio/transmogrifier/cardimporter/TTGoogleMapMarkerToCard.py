@@ -1,5 +1,5 @@
 from zope.interface import classProvides, implements
-
+from base64 import b64decode
 from collective.transmogrifier.interfaces import ISection, ISectionBlueprint
 from collective.geo.behaviour.interfaces import ICoordinates
 from plone import api
@@ -42,27 +42,101 @@ class TTGoogleMapMarkerToCardSection(object):
     def __iter__(self):
         # cross the transmogrify structure
         for item in self.previous:
-            # we continue to execute loop except as we got a shop or a contact or an association type.
-            if '_type' not in item or (not item['_type'] == 'TTGoogleMapMarker'):
-                if '_name' not in item:
-                    yield item
-                    continue
-            # we find a TTGoogleMapMarker
-            else:
-                if item['_type'] == 'TTGoogleMapMarker':
-                    # First, get a collective.directory.category from the path string.
-                    categoryContainer = self.getCategory(item['_path'])
-                    # We try to create the collective.directory.card in the category
-                    try:
-                        strData = item['_files']['marshall']['data']
-                        # get a simple object representation of the xml string.
-                        objData = objectify.fromstring(strData)
-                        currMapMarker = self.createTTGoogleMapMarker(objData, categoryContainer)
-                        # we create the card.
-                        self.createCardFromTTGoogleMapMarker(currMapMarker)
-                    except Exception:
-                        pass
-            yield item
+            pathkey = self.pathkey(*item.keys())[0]
+            if not pathkey:
+                yield item
+                continue
+
+            path = item[pathkey]
+            container = None
+            if isinstance(path, unicode):
+                path = path.encode('ascii')
+
+            # Looking for old type.
+            if '_classname' in item and 'ttGoogleMapMarker' in item['_classname'].upper():
+                container = self.migrate_container_cartes
+
+            # If we got a container, we can create  a catedgory and a card from Item(**item) into container\category\
+            if container is not None:
+                current_item = Item(**item)
+                category = self._get_category_from_catalog(current_item.get_category)
+                if category is None:
+                    category = self.create_category(current_item.get_category, container)
+                self.create_card(current_item, category)
+
+
+class Item():
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+        self._setattr_get_category()
+        self._setattr_get_logo()
+
+    def _setattr_get_category(self):
+        if hasattr(self, "category"):
+            setattr(self, "get_category", self.category)
+        if hasattr(self, "shopType"):
+            setattr(self, "get_category", self.shopType)
+        if hasattr(self, "association_type"):
+            setattr(self, "get_category", self.association_type)
+        if hasattr(self, "get_category") and isinstance(self.get_category, list):
+            self.get_category = self.get_category[0]
+
+    def _setattr_get_logo(self):
+        if hasattr(self, "_datafield_logo"):
+            try:
+                if self._datafield_logo['encoding'] == 'base64':
+                    data = b64decode(self._datafield_logo['data'])
+                filename = unicode(self._datafield_logo['filename'])
+                contentType = self._datafield_logo['content_type']
+                image = NamedBlobImage(data=data, contentType=contentType, filename=filename)
+                setattr(self, "get_logo", image)
+            except:
+                import ipdb;ipdb.set_trace()
+        else:
+            setattr(self, "get_logo", None)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # Thans to path we get the collective.directory.Category to stock the card.
     # if the collective.directory.Category not exist, we create it.
