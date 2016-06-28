@@ -45,9 +45,8 @@ setup(
         'plone.api',
         'setuptools',
         'collective.geo.behaviour',
-        'collective.transmogrifier==1.4',
-        'plone.app.transmogrifier==1.2',
-        'quintagroup.transmogrifier==0.5',
+        'collective.transmogrifier>=1.4',
+        'plone.app.transmogrifier>=1.2',
         'collective.directory>= 0.2.10',
     ],
     extras_require={
