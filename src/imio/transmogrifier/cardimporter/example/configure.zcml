@@ -1,0 +1,11 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:transmogrifier="http://namespaces.plone.org/transmogrifier"
+    i18n_domain="imio.transmogrifier.cardimporter">
+
+    <transmogrifier:registerConfig
+        name="ftw.blueprints.boulch"
+        title="ftw example migration configuration for DEXTERITY - modif by boulch"
+        description="default migration configuration, should used by every configuration"
+        configuration="boulch.cfg" />
+</configure>
