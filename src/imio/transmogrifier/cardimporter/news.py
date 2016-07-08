@@ -44,7 +44,10 @@ class NewsImporterSection(object):
             if '_type' in item and 'Event' in item['_type']:
                 # get news item.
                 fake_event = Event(**item)
-                event_item = self.context.unrestrictedTraverse(path.lstrip('/'), None)
+                if type(path) is unicode:
+                    event_item = self.context.unrestrictedTraverse(path.encode('utf-8').lstrip('/'), None)
+                else:
+                    event_item = self.context.unrestrictedTraverse(path.lstrip('/'), None)
                 try:
                     if fake_event.effectiveDate == 'None':
                         fake_event.effectiveDate = None
@@ -70,7 +73,10 @@ class NewsImporterSection(object):
             if '_type' in item and 'News' in item['_type'] and 'Newsletter' not in item['_type']:
                 # get news item.
                 fake_news = News(**item)
-                news_item = self.context.unrestrictedTraverse(path.lstrip('/'), None)
+                if type(path) is unicode:
+                    news_item = self.context.unrestrictedTraverse(path.encode('utf-8').lstrip('/'), None)
+                else:
+                    news_item = self.context.unrestrictedTraverse(path.lstrip('/'), None)
                 try:
                     if fake_news.effectiveDate == 'None':
                         fake_news.effectiveDate = None
